@@ -89,6 +89,9 @@ ENV/
 .ropeproject
 
 
-# cass.com ignores
-*.sqlite3
-settings.py
+# [all]
+.idea
+
+# [casspy]
+
+# [cassupload]
