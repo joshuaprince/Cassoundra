@@ -1,0 +1,27 @@
+body {
+    text-align: center;
+    font-family: Arial, SansSerif;
+    padding-top: 5%;
+}
+
+.errorlist {
+    color: red;
+    list-style-type: none;
+}
+
+label {
+    display: inline-block;
+    width: 80px;
+    text-align: right;
+}
+
+.inp {
+    display: inline-block;
+    width: 160px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+h1 {
+    font-size: medium;
+}

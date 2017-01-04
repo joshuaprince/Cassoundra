@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+    <meta charset="UTF-8">
+    <title>Cassoundra - Upload</title>
+    <link rel="stylesheet" href="{% static 'cassupl/style.css' %}">
+</head>
+<body>
+
+<form action="{% url 'cassupl:upload' %}" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="field" id="file_field">
+        {{ form.file.errors }}
+        <label for="{{ form.file.id_for_label }}">File: </label>
+        <span class="inp">{{ form.file }}</span>
+    </div>
+    <br>
+    <div class="field" id="command_field">
+        {{ form.name.errors }}
+        <label for="{{ form.name.id_for_label }}">Command:</label>
+        <span class="inp">!{{ form.name }}</span>
+    </div>
+    <br><br>
+    <input type="submit" value="Upload" />
+</form>
+
+<br><br>
+
+<div class="info">
+    <h1>Upload Restrictions</h1>
+    <li>Must be an MP3 file</li>
+    <li>1MB maximum file size</li>
+</div>
+
+</body>
+</html>

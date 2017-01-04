@@ -87,3 +87,8 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+
+# cass.com ignores
+*.sqlite3
+settings.py
