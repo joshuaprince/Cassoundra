@@ -153,7 +153,7 @@ async def on_message(message: discord.Message):
             return
 
         if await play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-            print('Playing \'' + message.content[1:] + '.mp3\' into [' +
+            print('Playing \'' + msg['name'] + '.mp3\' into [' +
                   message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
 
 
