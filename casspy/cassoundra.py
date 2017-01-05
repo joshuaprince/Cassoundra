@@ -98,10 +98,17 @@ def is_request_valid(message: discord.Message):
     if message.author.voice.deaf or message.author.voice.self_deaf:
         return "You have to suffer your own noise."
 
-    if 0 < message.author.voice_channel.user_limit <= len(message.author.voice_channel.voice_members) and not \
-            (client.voice_client_in(message.server) is not None and  # these 2 lines = "and not in the channel already"
-             client.voice_client_in(message.server).channel is message.author.voice_channel):
+    # By here, we should just make sure we'll actually be able to join the channel, so stop now if we're already in it.
+    if (client.voice_client_in(message.server) is not None and
+            client.voice_client_in(message.server).channel is message.author.voice_channel):
+        return None
+
+    if 0 < message.author.voice_channel.user_limit <= len(message.author.voice_channel.voice_members):
         return "Your voice channel is full."
+
+    if not (message.author.voice_channel.permissions_for(message.server.me).connect and
+            message.author.voice_channel.permissions_for(message.server.me).speak):
+        return "I'm not allowed into that channel."
 
     return None
 
