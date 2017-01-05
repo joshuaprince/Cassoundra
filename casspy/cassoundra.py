@@ -164,6 +164,14 @@ async def on_message(message: discord.Message):
                   message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
 
 
+@client.event
+async def on_voice_state_update(before: discord.Member, after: discord.Member):
+    # If the Member is leaving the Channel I'm in
+    if before.server.voice_client is not None and before.server.voice_client.channel is before.voice.voice_channel:
+        if len(before.server.voice_client.channel.voice_members) == 1:
+            await before.server.voice_client.disconnect()
+
+
 if __name__ == '__main__':
     # configuration
     config = configparser.ConfigParser()
