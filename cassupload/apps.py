@@ -1,5 +1,5 @@
 from django.apps import AppConfig
 
 
-class CassuplConfig(AppConfig):
-    name = 'cassupl'
+class CassUploadConfig(AppConfig):
+    name = 'cassupload'

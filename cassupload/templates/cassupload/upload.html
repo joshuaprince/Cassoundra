@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Cassoundra - Upload</title>
-    <link rel="stylesheet" href="{% static 'cassupl/style.css' %}">
+    <link rel="stylesheet" href="{% static 'cassupload/style.css' %}">
 </head>
 <body>
 
-<form action="{% url 'cassupl:upload' %}" method="post" enctype="multipart/form-data">
+<form action="{% url 'cassupload:upload' %}" method="post" enctype="multipart/form-data">
     {% csrf_token %}
     {{ form.non_field_errors }}
     <div class="field" id="file_field">

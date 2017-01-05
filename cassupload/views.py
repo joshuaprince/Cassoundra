@@ -12,4 +12,4 @@ def upload(request):
             return HttpResponseRedirect('/upload/success')
     else:
         form = UploadFileForm()
-    return render(request, 'cassupl/upload.html', {'form': form})
+    return render(request, 'cassupload/upload.html', {'form': form})
