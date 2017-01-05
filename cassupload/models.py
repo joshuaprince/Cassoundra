@@ -8,13 +8,6 @@ def upl_to(instance, fn):
     return os.path.join('sound', instance.name + '.mp3')
 
 
-class Guild(models.Model):
-    snowflake = models.CharField(max_length=64)
-
-    def __str__(self):
-        return self.snowflake
-
-
 class Sound(models.Model):
     name = models.CharField(max_length=32, default='', unique=True)
     file = models.FileField(
