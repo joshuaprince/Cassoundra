@@ -9,14 +9,15 @@ A Discord bot allowing users to upload MP3 files to be played by the bot on comm
 
 Created by Joshua Prince, 2017
 
-v0.1.0 alpha
+v0.2.0 alpha
 """
 
-import os
 import configparser
 
 import discord
 from discord import voice_client
+
+from cassupload.models import Sound
 
 client = discord.Client()
 players = {}  # server -> player
@@ -56,7 +57,9 @@ async def play(sound: str, server: discord.Server, channel: discord.Channel = No
     :param overwrite: Whether to interrupt a sound if it's already playing
     :return: True if the sound was played, False if something was already playing and overwrite was False
     """
-    if not os.path.isfile(sound_dir % sound):
+    try:
+        instance = Sound.objects.get(name=sound)  # type: Sound
+    except Sound.DoesNotExist:
         return False
 
     if overwrite:
@@ -64,10 +67,13 @@ async def play(sound: str, server: discord.Server, channel: discord.Channel = No
     elif is_playing(server):
         return False
 
+    instance.play_count += 1
+    instance.save()
+
     if channel is not None:
         await move_to_channel(channel)
 
-    players[server] = client.voice_client_in(server).create_ffmpeg_player(sound_dir % sound, after=sound_end)
+    players[server] = client.voice_client_in(server).create_ffmpeg_player(instance.file.name, after=sound_end)
     players[server].start()
 
     return True
@@ -172,15 +178,18 @@ async def on_voice_state_update(before: discord.Member, after: discord.Member):
             await before.server.voice_client.disconnect()
 
 
-if __name__ == '__main__':
+def main():
     # configuration
     config = configparser.ConfigParser()
     # TODO checking for existence of config.ini
     try:
-        config.read('config.ini')
+        read_count = config.read('config.ini')
     except configparser.ParsingError as err:
         print('Could not parse config.ini!')
         exit(1)
 
-    sound_dir = config['Sound Information']['SoundDir']
+    if read_count == 0:
+        print('Could not find config.ini!')
+        exit(2)
+
     client.run(config['Bot Information']['APIToken'])
