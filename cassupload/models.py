@@ -14,7 +14,7 @@ class Sound(models.Model):
         upload_to=upl_to,
         validators=[validate_extension, validate_size]
     )
-    play_count = models.IntegerField(default=0)  # TODO this doesn't do anything yet
+    play_count = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
