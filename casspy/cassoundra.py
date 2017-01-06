@@ -48,6 +48,21 @@ def stop(server: discord.Server):
         players.pop(server)
 
 
+async def play_yt(url: str, server: discord.Server, channel: discord.Channel = None, overwrite: bool = False) -> bool:
+    if overwrite:
+        stop(server)
+    elif is_playing(server):
+        return False
+
+    if channel is not None:
+        await move_to_channel(channel)
+
+    players[server] = await client.voice_client_in(server).create_ytdl_player(url=url, after=sound_end)
+    players[server].start()
+
+    return True
+
+
 async def play(sound: str, server: discord.Server, channel: discord.Channel = None, overwrite: bool = False) -> bool:
     """
     Play a sound effect on a server
@@ -125,23 +140,30 @@ def parse_message(string: str) -> {}:
     :param string: Unaltered message
     :return: 'cmd' = True if it should be parsed, False if otherwise.
     """
-    ret = {'cmd': True, 'overwrite': False, 'name': ''}
+    ret = {'cmd': True, 'overwrite': False, 'name': '', 'youtube': False}
 
     # Special commands
     if string == '~':
-        return {'cmd': True, 'overwrite': True, 'name': ''}
+        return {'cmd': True, 'overwrite': True, 'name': '', 'youtube': False}
     if string == '~~':
-        return {'cmd': True, 'overwrite': True, 'name': 'record'}
+        return {'cmd': True, 'overwrite': True, 'name': 'record', 'youtube': False}
     if string == '~~~':
-        return {'cmd': True, 'overwrite': True, 'name': 'dearsister'}
+        return {'cmd': True, 'overwrite': True, 'name': 'dearsister', 'youtube': False}
 
-    if string.startswith('!'):
+    if string.startswith('!!'):
+        ret['name'] = string[2:]
+        ret['youtube'] = True
+    elif string.startswith('~!!'):
+        ret['overwrite'] = True
+        ret['name'] = string[3:]
+        ret['youtube'] = True
+    elif string.startswith('!'):
         ret['name'] = string[1:]
     elif string.startswith('~!'):
         ret['overwrite'] = True
         ret['name'] = string[2:]
 
-    if ret['name'] and ret['name'].isalnum():
+    if ret['name'] and (ret['name'].isalnum() or ret['youtube']):
         return ret
 
     return {'cmd': False}
@@ -165,9 +187,14 @@ async def on_message(message: discord.Message):
             stop(message.server)
             return
 
-        if await play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-            print('Playing \'' + msg['name'] + '.mp3\' into [' +
-                  message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
+        if msg['youtube']:
+            if await play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
+                print('Playing YOUTUBE:' + msg['name'] + 'into [' +
+                      message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
+        else:
+            if await play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
+                print('Playing \'' + msg['name'] + '.mp3\' into [' +
+                      message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
 
 
 @client.event
