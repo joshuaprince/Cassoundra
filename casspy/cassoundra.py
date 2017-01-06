@@ -13,12 +13,14 @@ v0.2.0 alpha
 """
 
 import configparser
+import logging
 
 import discord
 from discord import voice_client
 
 from cassupload.models import Sound
 
+logger = logging.getLogger('casspy')
 client = discord.Client()
 players = {}  # server -> player
 
@@ -98,7 +100,6 @@ def sound_end(player: voice_client.ProcessPlayer):
     for p in players.items():
         if players[p] is player:
             players.pop(p)
-            print('pop')
 
 
 def is_request_valid(message: discord.Message):
@@ -172,6 +173,7 @@ def parse_message(string: str) -> {}:
 @client.event
 async def on_ready():
     print('Logged in as ' + client.user.name + ' with ID ' + client.user.id)
+    logger.info('Login as ' + client.user.name + ' with ID ' + client.user.id)
 
 
 @client.event
@@ -189,11 +191,11 @@ async def on_message(message: discord.Message):
 
         if msg['youtube']:
             if await play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-                print('Playing YOUTUBE:' + msg['name'] + 'into [' +
+                logger.info('Playing YOUTUBE:' + msg['name'] + 'into [' +
                       message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
         else:
             if await play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-                print('Playing \'' + msg['name'] + '.mp3\' into [' +
+                logger.info('Playing \'' + msg['name'] + '.mp3\' into [' +
                       message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
 
 
@@ -212,11 +214,11 @@ def main():
     try:
         read_count = config.read('config.ini')
     except configparser.ParsingError as err:
-        print('Could not parse config.ini!')
+        logger.fatal('Could not parse config.ini!')
         exit(1)
 
     if read_count == 0:
-        print('Could not find config.ini!')
+        logger.fatal('Could not find config.ini!')
         exit(2)
 
     client.run(config['Bot Information']['APIToken'])
