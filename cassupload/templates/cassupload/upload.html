@@ -5,6 +5,18 @@
     <meta charset="UTF-8">
     <title>Cassoundra - Upload</title>
     <link rel="stylesheet" href="{% static 'cassupload/style.css' %}">
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('input[type=file]').on('change', function () {
+                if (!$('#id_name').val()) {
+                    var filename = $(this).val().split('\\').pop().split('/').pop().replace('.mp3', '');
+                    if (!/\s/g.test(filename)) // if no spaces
+                        $('#id_name').val(filename);
+                }
+            });
+        });
+    </script>
 </head>
 <body>
 
