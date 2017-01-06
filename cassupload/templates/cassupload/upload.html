@@ -34,6 +34,12 @@
         <label for="{{ form.name.id_for_label }}">Command:</label>
         <span class="inp">!{{ form.name }}</span>
     </div>
+    <br>
+    <div class="field" id="loud_field">
+        {{ form.loud.errors }}
+        <label for="{{ form.loud.id_for_label }}">Loud? </label>
+        <span class="inp">{{ form.loud }}</span>
+    </div>
     <br><br>
     <input type="submit" value="Upload" />
 </form>

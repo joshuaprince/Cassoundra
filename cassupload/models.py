@@ -15,6 +15,7 @@ class Sound(models.Model):
         validators=[validate_extension, validate_size]
     )
     play_count = models.IntegerField(default=0)
+    loud = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name

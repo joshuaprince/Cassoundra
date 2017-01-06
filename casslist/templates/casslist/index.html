@@ -20,6 +20,7 @@
             <thead>
                 <tr>
                     <th>Command</th>
+                    <th>Loud</th>
                     <th>Play Count</th>
                 </tr>
             </thead>
@@ -27,6 +28,11 @@
             {% for sound in cass_sound_list %}
                 <tr>
                     <td>{{ sound.name }}</td>
+                    <td>
+                    {% if sound.loud %}
+                        <b>Loud</b>
+                    {% endif %}
+                    </td>
                     <td>{{ sound.play_count }}</td>
                 </tr>
             {% endfor %}
