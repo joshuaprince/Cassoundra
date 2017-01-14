@@ -15,6 +15,9 @@ v0.2.0 alpha
 import configparser
 import logging
 
+from django.db import connection
+from django.db.utils import OperationalError
+
 import discord
 from discord import voice_client
 
@@ -41,6 +44,14 @@ async def move_to_channel(channel: discord.Channel):
             await client.voice_client_in(server).move_to(channel)
     else:
         await client.join_voice_channel(channel)  # not connected to a channel in this server
+
+
+async def disconnect(server: discord.Server):
+    await server.voice_client.disconnect()
+    players.pop(server)
+    if len(players) == 0:
+        connection.close()
+        logger.info('No living connections; database going to sleep')
 
 
 def stop(server: discord.Server):
@@ -78,6 +89,9 @@ async def play(sound: str, server: discord.Server, channel: discord.Channel = No
         instance = Sound.objects.get(name=sound)  # type: Sound
     except Sound.DoesNotExist:
         return False
+    except OperationalError:  # Django operational error; most likely 'MySQL server has gone away'
+        connection.close()
+        return False  # Restart a connection and let the user try again
 
     if overwrite:
         stop(server)
@@ -204,7 +218,7 @@ async def on_voice_state_update(before: discord.Member, after: discord.Member):
     # If the Member is leaving the Channel I'm in
     if before.server.voice_client is not None and before.server.voice_client.channel is before.voice.voice_channel:
         if len(before.server.voice_client.channel.voice_members) == 1:
-            await before.server.voice_client.disconnect()
+            await disconnect(before.server)
 
 
 def main():
