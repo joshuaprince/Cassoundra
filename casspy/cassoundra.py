@@ -206,11 +206,13 @@ async def on_message(message: discord.Message):
         if msg['youtube']:
             if await play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
                 logger.info('Playing YOUTUBE:' + msg['name'] + 'into [' +
-                      message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
+                            message.server.name + ':' + message.author.voice_channel.name + '] by ' +
+                            message.author.name)
         else:
             if await play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
                 logger.info('Playing \'' + msg['name'] + '.mp3\' into [' +
-                      message.server.name + ':' + message.author.voice_channel.name + '] by ' + message.author.name)
+                            message.server.name + ':' + message.author.voice_channel.name + '] by ' +
+                            message.author.name)
 
 
 @client.event
@@ -227,7 +229,7 @@ def main():
     # TODO checking for existence of config.ini
     try:
         read_count = config.read('config.ini')
-    except configparser.ParsingError as err:
+    except configparser.ParsingError:
         logger.fatal('Could not parse config.ini!')
         exit(1)
 
