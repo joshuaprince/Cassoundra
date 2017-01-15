@@ -15,7 +15,7 @@
 <body>
     <div class="container">
         <h2>Sound Commands</h2>
-        <h4>Currently tracking {{ cass_sound_list|length }} sound effects.</h4>
+        <h4>Currently tracking {{ cass_sound_list|length }} sound effects played {{ view.total_plays }} times.</h4>
         <p>Sorted by upload time, most recently first.</p>
     {% if cass_sound_list %}
         <table class="table table-striped table-hover">
