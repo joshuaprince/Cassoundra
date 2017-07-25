@@ -47,7 +47,7 @@ async def move_to_channel(channel: discord.Channel):
 
 
 async def disconnect(server: discord.Server):
-    await server.voice_client.disconnect()
+    await client.voice_client_in(server).disconnect()
     players.pop(server)
     if len(players) == 0:
         connection.close()
