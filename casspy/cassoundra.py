@@ -23,9 +23,13 @@ from discord import voice_client
 
 from cassupload.models import Sound
 
+from casspy import admin_commands
+
 logger = logging.getLogger('casspy')
 client = discord.Client()
 players = {}  # server -> player
+apitoken = None
+admins = None
 
 
 def is_playing(server: discord.Server) -> bool:
@@ -116,15 +120,12 @@ def sound_end(player: voice_client.ProcessPlayer):
             players.pop(p)
 
 
-def is_request_valid(message: discord.Message):
+def get_request_error(message: discord.Message):
     """
     Checks conditions on the sender and server to see if Cass can do anything from a request
     :param message: Message encoding the request
     :return: A string with an error message to print, or None if the request is valid
     """
-    if message.server is None:
-        return "Slide out of my DMs, please."
-
     if message.author.voice_channel is None:
         return "You aren't in a channel."
 
@@ -149,7 +150,7 @@ def is_request_valid(message: discord.Message):
     return None
 
 
-def parse_message(string: str) -> {}:
+def parse_server_message(string: str) -> {}:
     """
     Converts a message string to a dictionary with information about a command
     :param string: Unaltered message
@@ -184,35 +185,62 @@ def parse_message(string: str) -> {}:
     return {'cmd': False}
 
 
+def is_admin(user: discord.User) -> bool:
+    return user.id in admins
+
+
 @client.event
 async def on_ready():
     print('Logged in as ' + client.user.name + ' with ID ' + client.user.id)
     logger.info('Login as ' + client.user.name + ' with ID ' + client.user.id)
 
 
+async def handle_direct_message(message: discord.Message):
+    if not is_admin(message.author):
+        await client.send_message(message.author, "Slide out of my DMs, please.")
+        logger.info('{} sent DM "{}"'.format(message.author.name, message.content))
+        return
+
+    try:
+        response = await admin_commands.handle(message.content)
+    except Exception as e:
+        response = "Seems like I had some kind of problem fulfilling that command:\n" + str(e)
+
+    if response is not None:
+        await client.send_message(message.author, response)
+
+
+async def handle_server_message(message: discord.Message):
+    msg = parse_server_message(message.content)
+    if not msg['cmd']:
+        return
+
+    error = get_request_error(message)
+    if error is not None:
+        await client.send_message(message.channel, error)
+        return
+
+    if msg['overwrite'] and not msg['name']:
+        stop(message.server)
+        return
+
+    if msg['youtube']:
+        if await play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
+            logger.info('Playing YOUTUBE:' + msg['name'] + 'into [' +
+                        message.server.name + ':' + message.author.voice_channel.name + '] by ' +
+                        message.author.name)
+    else:
+        if await play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
+            logger.info('Playing \'' + msg['name'] + '.mp3\' into [' +
+                        message.server.name + ':' + message.author.voice_channel.name + '] by ' +
+                        message.author.name)
+
+
 @client.event
 async def on_message(message: discord.Message):
-    msg = parse_message(message.content)
-    if msg['cmd']:
-        valid = is_request_valid(message)
-        if valid is not None:
-            await client.send_message(message.channel, valid)
-            return
-
-        if msg['overwrite'] and not msg['name']:
-            stop(message.server)
-            return
-
-        if msg['youtube']:
-            if await play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-                logger.info('Playing YOUTUBE:' + msg['name'] + 'into [' +
-                            message.server.name + ':' + message.author.voice_channel.name + '] by ' +
-                            message.author.name)
-        else:
-            if await play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-                logger.info('Playing \'' + msg['name'] + '.mp3\' into [' +
-                            message.server.name + ':' + message.author.voice_channel.name + '] by ' +
-                            message.author.name)
+    if message.author == client.user:
+        return
+    await handle_direct_message(message) if message.server is None else await handle_server_message(message)
 
 
 @client.event
@@ -224,17 +252,16 @@ async def on_voice_state_update(before: discord.Member, after: discord.Member):
 
 
 def main():
-    # configuration
+    global apitoken, admins
     config = configparser.ConfigParser()
-    # TODO checking for existence of config.ini
     try:
-        read_count = config.read('config.ini')
+        config.read('config.ini')
+
+        apitoken = config['Cassoundra']['apitoken']
+        admins = str(config['Cassoundra']['admins']).split(sep=',')
+
     except configparser.ParsingError:
         logger.fatal('Could not parse config.ini!')
         exit(1)
 
-    if read_count == 0:
-        logger.fatal('Could not find config.ini!')
-        exit(2)
-
-    client.run(config['Bot Information']['APIToken'])
+    client.run(apitoken)
