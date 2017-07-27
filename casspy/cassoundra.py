@@ -14,6 +14,7 @@ v0.2.0 alpha
 
 import configparser
 import logging
+import asyncio
 
 from django.db import connection
 from django.db.utils import OperationalError
@@ -251,6 +252,14 @@ async def on_voice_state_update(before: discord.Member, after: discord.Member):
             await disconnect(before.server)
 
 
+async def process_input():
+    while True:
+        command = await client.loop.run_in_executor(None, input, "> ")
+        if str(command).split(" ")[0].lower() == "shutdown":
+            return
+        print(await admin_commands.handle(command))
+
+
 def main():
     global apitoken, admins
     config = configparser.ConfigParser()
@@ -259,9 +268,31 @@ def main():
 
         apitoken = config['Cassoundra']['apitoken']
         admins = str(config['Cassoundra']['admins']).split(sep=',')
-
     except configparser.ParsingError:
         logger.fatal('Could not parse config.ini!')
         exit(1)
 
-    client.run(apitoken)
+    try:
+        client.loop.run_until_complete(  # thank you discord message 306962625923645441 by robbie0630#9712
+            asyncio.wait([
+                client.start(apitoken),
+                process_input()
+            ], return_when=asyncio.FIRST_COMPLETED)
+        )
+    except KeyboardInterrupt:
+        pass
+
+    try:
+        client.loop.run_until_complete(client.logout())
+        pending = asyncio.Task.all_tasks(loop=client.loop)
+        gathered = asyncio.gather(*pending, loop=client.loop)
+        gathered.cancel()
+        client.loop.run_until_complete(gathered)
+
+        # we want to retrieve any exceptions to make sure that
+        # they don't nag us about it being un-retrieved.
+        gathered.exception()
+    except:
+        pass
+    finally:
+        client.loop.close()

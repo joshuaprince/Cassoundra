@@ -19,17 +19,18 @@ async def handle(cmd: str) -> str:
     tok = cmd.split(' ')
 
     try:
-        if tok[0] == 'shutdown':
+        if tok[0].lower() == 'shutdown':
             return await cmd_shutdown()
-        if tok[0] == 'say':
+        elif tok[0].lower() == 'say':
             return await cmd_say(tok[1], ' '.join(tok[2:]))
+        else:
+            return "Unknown command " + tok[0] + "."
     except IndexError:
         pass
 
 
 async def cmd_shutdown() -> str:
-    await cassoundra.client.logout()
-    return "Shutting down."
+    raise KeyboardInterrupt
 
 
 async def cmd_say(channel: str, content: str) -> str:
