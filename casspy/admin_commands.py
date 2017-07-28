@@ -15,6 +15,14 @@ import discord
 
 from casspy import cassoundra
 
+async def process_input(loop):
+    while True:
+        command = await loop.run_in_executor(None, input, "> ")
+        if str(command).split(" ")[0].lower() == "shutdown":
+            return
+        print(await handle(command))
+
+
 async def handle(cmd: str) -> str:
     tok = cmd.split(' ')
 

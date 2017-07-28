@@ -15,109 +15,42 @@ v0.2.0 alpha
 import configparser
 import logging
 import asyncio
+import typing
 
 from django.db import connection
 from django.db.utils import OperationalError
 
 import discord
-from discord import voice_client
 
 from cassupload.models import Sound
 
-from casspy import admin_commands
+from casspy import admin_commands, cass_client
 
 logger = logging.getLogger('casspy')
-client = discord.Client()
-players = {}  # server -> player
+client = cass_client.CassClient()
 admins = None
 
 
-def is_playing(server: discord.Server) -> bool:
-    if players.get(server) is None:
-        return False
-    return players.get(server).is_playing()
-
-
-async def move_to_channel(channel: discord.Channel):
-    server = channel.server
-    if is_playing(server):
-        return  # don't stop in the middle of a sound
-
-    if client.is_voice_connected(server):
-        if client.voice_client_in(server).channel is not channel:  # connected to a different channel in this server
-            await client.voice_client_in(server).move_to(channel)
-    else:
-        await client.join_voice_channel(channel)  # not connected to a channel in this server
-
-
-async def disconnect(server: discord.Server):
-    await client.voice_client_in(server).disconnect()
-    players.pop(server)
-    if len(players) == 0:
-        connection.close()
-        logger.info('No living connections; database going to sleep')
-
-
-def stop(server: discord.Server):
-    if players.get(server) is not None:
-        if is_playing(server):
-            players.get(server).stop()
-        players.pop(server)
-
-
-async def play_yt(url: str, server: discord.Server, channel: discord.Channel = None, overwrite: bool = False) -> bool:
-    if overwrite:
-        stop(server)
-    elif is_playing(server):
-        return False
-
-    if channel is not None:
-        await move_to_channel(channel)
-
-    players[server] = await client.voice_client_in(server).create_ytdl_player(url=url, after=sound_end)
-    players[server].start()
-
-    return True
-
-
-async def play(sound: str, server: discord.Server, channel: discord.Channel = None, overwrite: bool = False) -> bool:
+def get_sound(sound: str, increase_play_count: bool=True) -> typing.Optional[str]:
     """
-    Play a sound effect on a server
-    :param sound: Sound file name, without .mp3
-    :param server: Server to play to
-    :param channel: Channel to swap to if necessary
-    :param overwrite: Whether to interrupt a sound if it's already playing
-    :return: True if the sound was played, False if something was already playing and overwrite was False
+    Returns the filepath of a named sound
+    :param sound: Name of the sound to play
+    :param increase_play_count: If True, the database will track an additional play of this sound
+    :return: Full path of sound. None if the sound does not exist.
     """
     try:
         instance = Sound.objects.get(name=sound)  # type: Sound
     except Sound.DoesNotExist:
-        return False
+        return None
     except OperationalError:  # Django operational error; most likely 'MySQL server has gone away'
         connection.close()
-        return False  # Restart a connection and let the user try again
+        return None  # Restart a connection and let the user try again
 
-    if overwrite:
-        stop(server)
-    elif is_playing(server):
-        return False
+    if increase_play_count:
+        instance.play_count += 1
+        instance.save()
 
-    instance.play_count += 1
-    instance.save()
-
-    if channel is not None:
-        await move_to_channel(channel)
-
-    players[server] = client.voice_client_in(server).create_ffmpeg_player(instance.file.name, after=sound_end)
-    players[server].start()
-
-    return True
-
-
-def sound_end(player: voice_client.ProcessPlayer):
-    for p in players.items():
-        if players[p] is player:
-            players.pop(p)
+    return instance.file.name
 
 
 def get_request_error(message: discord.Message):
@@ -189,12 +122,6 @@ def is_admin(user: discord.User) -> bool:
     return user.id in admins
 
 
-@client.event
-async def on_ready():
-    print('Logged in as ' + client.user.name + ' with ID ' + client.user.id)
-    logger.info('Login as ' + client.user.name + ' with ID ' + client.user.id)
-
-
 async def handle_direct_message(message: discord.Message):
     if not is_admin(message.author):
         await client.send_message(message.author, "Slide out of my DMs, please.")
@@ -221,19 +148,25 @@ async def handle_server_message(message: discord.Message):
         return
 
     if msg['overwrite'] and not msg['name']:
-        stop(message.server)
+        client.stop(message.server)
         return
 
     if msg['youtube']:
-        if await play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
+        if await client.play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
             logger.info('Playing YOUTUBE:' + msg['name'] + 'into [' +
                         message.server.name + ':' + message.author.voice_channel.name + '] by ' +
                         message.author.name)
     else:
-        if await play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
+        if await client.play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
             logger.info('Playing \'' + msg['name'] + '.mp3\' into [' +
                         message.server.name + ':' + message.author.voice_channel.name + '] by ' +
                         message.author.name)
+
+
+@client.event
+async def on_ready():
+    print('Logged in as ' + client.user.name + ' with ID ' + client.user.id)
+    logger.info('Login as ' + client.user.name + ' with ID ' + client.user.id)
 
 
 @client.event
@@ -248,15 +181,7 @@ async def on_voice_state_update(before: discord.Member, after: discord.Member):
     # If the Member is leaving the Channel I'm in
     if before.server.voice_client is not None and before.server.voice_client.channel is before.voice.voice_channel:
         if len(before.server.voice_client.channel.voice_members) == 1:
-            await disconnect(before.server)
-
-
-async def process_input():
-    while True:
-        command = await client.loop.run_in_executor(None, input, "> ")
-        if str(command).split(" ")[0].lower() == "shutdown":
-            return
-        print(await admin_commands.handle(command))
+            await client.disconnect(before.server)
 
 
 def main():
@@ -265,19 +190,18 @@ def main():
     try:
         config.read('config.ini')
 
-        apitoken = config['Cassoundra']['apitoken']
+        token = config['Cassoundra']['apitoken']
         admins = str(config['Cassoundra']['admins']).split(sep=',')
+
+        client.loop.run_until_complete(  # thank you discord message 306962625923645441 by robbie0630#9712
+            asyncio.wait([
+                client.start(token),
+                admin_commands.process_input(client.loop)
+            ], return_when=asyncio.FIRST_COMPLETED)
+        )
     except configparser.ParsingError:
         logger.fatal('Could not parse config.ini!')
         exit(1)
-
-    try:
-        client.loop.run_until_complete(  # thank you discord message 306962625923645441 by robbie0630#9712
-            asyncio.wait([
-                client.start(apitoken),
-                process_input()
-            ], return_when=asyncio.FIRST_COMPLETED)
-        )
     except KeyboardInterrupt:
         pass
 
