@@ -17,9 +17,7 @@ import logging
 import asyncio
 import typing
 
-from django.db import connection
-from django.db.utils import OperationalError
-
+import django.db
 import discord
 
 from cassupload.models import Sound
@@ -42,8 +40,8 @@ def get_sound(sound: str, increase_play_count: bool=True) -> typing.Optional[str
         instance = Sound.objects.get(name=sound)  # type: Sound
     except Sound.DoesNotExist:
         return None
-    except OperationalError:  # Django operational error; most likely 'MySQL server has gone away'
-        connection.close()
+    except django.db.utils.OperationalError:  # Django operational error; most likely 'MySQL server has gone away'
+        django.db.connection.close()
         return None  # Restart a connection and let the user try again
 
     if increase_play_count:
