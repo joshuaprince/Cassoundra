@@ -29,7 +29,6 @@ from casspy import admin_commands
 logger = logging.getLogger('casspy')
 client = discord.Client()
 players = {}  # server -> player
-apitoken = None
 admins = None
 
 
@@ -261,7 +260,7 @@ async def process_input():
 
 
 def main():
-    global apitoken, admins
+    global admins
     config = configparser.ConfigParser()
     try:
         config.read('config.ini')
