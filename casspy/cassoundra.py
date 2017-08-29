@@ -86,15 +86,15 @@ def parse_server_message(string: str) -> {}:
     :param string: Unaltered message
     :return: 'cmd' = True if it should be parsed, False if otherwise.
     """
-    ret = {'cmd': True, 'overwrite': False, 'name': '', 'youtube': False}
+    ret = {'cmd': True, 'overwrite': False, 'name': '', 'youtube': False, 'volume': 50}
 
     # Special commands
     if string == '~':
-        return {'cmd': True, 'overwrite': True, 'name': '', 'youtube': False}
+        return {'cmd': True, 'overwrite': True, 'name': '', 'youtube': False, 'volume': 0.0}
     if string == '~~':
-        return {'cmd': True, 'overwrite': True, 'name': 'record', 'youtube': False}
+        return {'cmd': True, 'overwrite': True, 'name': 'record', 'youtube': False, 'volume': 0.0}
     if string == '~~~':
-        return {'cmd': True, 'overwrite': True, 'name': 'dearsister', 'youtube': False}
+        return {'cmd': True, 'overwrite': True, 'name': 'dearsister', 'youtube': False, 'volume': 0.0}
 
     if string.startswith('!!'):
         ret['name'] = string[2:]
@@ -104,10 +104,16 @@ def parse_server_message(string: str) -> {}:
         ret['name'] = string[3:]
         ret['youtube'] = True
     elif string.startswith('!'):
-        ret['name'] = string[1:]
+        spl = string[1:].split(' ')
+        ret['name'] = spl[0]
+        if len(spl) > 1 and spl[1].isdigit():
+            ret['volume'] = min(int(spl[1]), 100)
     elif string.startswith('~!'):
         ret['overwrite'] = True
-        ret['name'] = string[2:]
+        spl = string[2:].split(' ')
+        ret['name'] = spl[0]
+        if len(spl) > 1 and spl[1].isdigit():
+            ret['volume'] = min(int(spl[1]), 100)
 
     if ret['name'] and (ret['name'].isalnum() or ret['youtube']):
         return ret
@@ -155,7 +161,7 @@ async def handle_server_message(message: discord.Message):
                 message.author.name, message.author.id
             ))
     else:
-        if await client.play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
+        if await client.play(msg['name'], message.server, message.author.voice_channel, msg['overwrite'], msg['volume']):
             logging.getLogger('cassoundra.play.file').info('Playing {}.mp3 into [{}:{}/{}] by [{}/{}].'.format(
                 msg['name'], message.server.name, message.author.voice_channel.name, message.author.voice_channel.id,
                 message.author.name, message.author.id

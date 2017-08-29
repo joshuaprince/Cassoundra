@@ -65,13 +65,14 @@ class CassClient(discord.Client):
         return True
 
     async def play(self, sound: str, server: discord.Server, channel: discord.Channel = None,
-                   overwrite: bool = False) -> bool:
+                   overwrite: bool = False, volume: int = 50) -> bool:
         """
         Play a sound effect on a server
         :param sound: Sound file name, without .mp3
         :param server: Server to play to
         :param channel: Channel to swap to if necessary
         :param overwrite: Whether to interrupt a sound if it's already playing
+        :param volume: Scaled from 0 to 100, but seems to go higher
         :return: True if the sound was played, False if something was already playing and overwrite was False
         """
         if self.is_playing(server) and not overwrite:
@@ -86,6 +87,7 @@ class CassClient(discord.Client):
             await self.move_to_channel(channel)
 
         self.players[server] = self.voice_client_in(server).create_ffmpeg_player(sound_path, after=self.on_sound_end)
+        self.players[server].volume = float(volume) / 100.0
         self.players[server].start()
 
         return True
