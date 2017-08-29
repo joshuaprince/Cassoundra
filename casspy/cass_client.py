@@ -75,7 +75,9 @@ class CassClient(discord.Client):
         :param volume: Scaled from 0 to 100, but seems to go higher
         :return: True if the sound was played, False if something was already playing and overwrite was False
         """
-        if self.is_playing(server) and not overwrite:
+        if overwrite:
+            self.stop(server)
+        elif self.is_playing(server):
             return False
 
         sound_path = cassoundra.get_sound(sound)  # play count increases here
