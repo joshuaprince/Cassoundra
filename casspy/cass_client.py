@@ -1,4 +1,6 @@
 
+import logging
+
 import discord
 
 from casspy import cassoundra
@@ -45,7 +47,11 @@ class CassClient(discord.Client):
         if channel is not None:
             await self.move_to_channel(channel)
 
-            self.players[server] = await self.voice_client_in(server).create_ytdl_player(url, after=self.on_sound_end)
+            self.players[server] = await self.voice_client_in(server).create_ytdl_player(
+                    url, after=self.on_sound_end,
+                    ytdl_options={
+                        'logger': logging.getLogger('cassoundra.ytdl')
+                    })
 
         self.players[server].start()
 

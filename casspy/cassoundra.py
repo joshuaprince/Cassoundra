@@ -24,7 +24,6 @@ from cassupload.models import Sound
 
 from casspy import admin_commands, cass_client
 
-logger = logging.getLogger('casspy')
 client = cass_client.CassClient()
 admins = None
 
@@ -123,7 +122,7 @@ def is_admin(user: discord.User) -> bool:
 async def handle_direct_message(message: discord.Message):
     if not is_admin(message.author):
         await client.send_message(message.author, "Slide out of my DMs, please.")
-        logger.info('{} sent DM "{}"'.format(message.author.name, message.content))
+        logging.getLogger('cassoundra.console').info('{} sent DM "{}"'.format(message.author.name, message.content))
         return
 
     try:
@@ -151,20 +150,23 @@ async def handle_server_message(message: discord.Message):
 
     if msg['youtube']:
         if await client.play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-            logger.info('Playing YOUTUBE:' + msg['name'] + 'into [' +
-                        message.server.name + ':' + message.author.voice_channel.name + '] by ' +
-                        message.author.name)
+            logging.getLogger('cassoundra.play.ytdl').info('Streaming {} into [{}:{}/{}] by [{}/{}].'.format(
+                msg['name'], message.server.name, message.author.voice_channel.name, message.author.voice_channel.id,
+                message.author.name, message.author.id
+            ))
     else:
         if await client.play(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-            logger.info('Playing \'' + msg['name'] + '.mp3\' into [' +
-                        message.server.name + ':' + message.author.voice_channel.name + '] by ' +
-                        message.author.name)
+            logging.getLogger('cassoundra.play.file').info('Playing {}.mp3 into [{}:{}/{}] by [{}/{}].'.format(
+                msg['name'], message.server.name, message.author.voice_channel.name, message.author.voice_channel.id,
+                message.author.name, message.author.id
+            ))
 
 
 @client.event
 async def on_ready():
-    print('Logged in as ' + client.user.name + ' with ID ' + client.user.id)
-    logger.info('Login as ' + client.user.name + ' with ID ' + client.user.id)
+    ready_str = 'Logged in successfully as [{}/{}].'.format(client.user.name, client.user.id)
+    print(ready_str)
+    logging.getLogger('cassoundra').info(ready_str)
 
 
 @client.event
@@ -190,30 +192,35 @@ def main():
 
         token = config['Cassoundra']['apitoken']
         admins = str(config['Cassoundra']['admins']).split(sep=',')
+    except configparser.ParsingError:
+        logging.getLogger('cassoundra.error').fatal('Could not parse config.ini!')
+        return
 
+    try:
         client.loop.run_until_complete(  # thank you discord message 306962625923645441 by robbie0630#9712
             asyncio.wait([
                 client.start(token),
                 admin_commands.process_input(client.loop)
             ], return_when=asyncio.FIRST_COMPLETED)
         )
-    except configparser.ParsingError:
-        logger.fatal('Could not parse config.ini!')
-        exit(1)
     except KeyboardInterrupt:
         pass
-
-    try:
-        client.loop.run_until_complete(client.logout())
-        pending = asyncio.Task.all_tasks(loop=client.loop)
-        gathered = asyncio.gather(*pending, loop=client.loop)
-        gathered.cancel()
-        client.loop.run_until_complete(gathered)
-
-        # we want to retrieve any exceptions to make sure that
-        # they don't nag us about it being un-retrieved.
-        gathered.exception()
-    except:
-        pass
+    except Exception as e:
+        logging.getLogger('cassoundra.error').critical('Encountered an unhandled exception.\n' + str(e))
     finally:
-        client.loop.close()
+        logging.getLogger('cassoundra').info('Shutting down.')
+
+        try:
+            client.loop.run_until_complete(client.logout())
+            pending = asyncio.Task.all_tasks(loop=client.loop)
+            gathered = asyncio.gather(*pending, loop=client.loop)
+            gathered.cancel()
+            client.loop.run_until_complete(gathered)
+
+            # we want to retrieve any exceptions to make sure that
+            # they don't nag us about it being un-retrieved.
+            gathered.exception()
+        except Exception as e:
+            logging.getLogger('cassoundra.error').debug('Caught exception while gathering tasks:\n' + str(e))
+        finally:
+            client.loop.close()
