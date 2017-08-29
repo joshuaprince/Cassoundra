@@ -16,6 +16,7 @@ import configparser
 import logging
 import asyncio
 import typing
+import re
 
 import django.db
 import discord
@@ -80,47 +81,6 @@ def get_request_error(message: discord.Message):
     return None
 
 
-def parse_server_message(string: str) -> {}:
-    """
-    Converts a message string to a dictionary with information about a command
-    :param string: Unaltered message
-    :return: 'cmd' = True if it should be parsed, False if otherwise.
-    """
-    ret = {'cmd': True, 'overwrite': False, 'name': '', 'youtube': False, 'volume': 50}
-
-    # Special commands
-    if string == '~':
-        return {'cmd': True, 'overwrite': True, 'name': '', 'youtube': False, 'volume': 0.0}
-    if string == '~~':
-        return {'cmd': True, 'overwrite': True, 'name': 'record', 'youtube': False, 'volume': 0.0}
-    if string == '~~~':
-        return {'cmd': True, 'overwrite': True, 'name': 'dearsister', 'youtube': False, 'volume': 0.0}
-
-    if string.startswith('!!'):
-        ret['name'] = string[2:]
-        ret['youtube'] = True
-    elif string.startswith('~!!'):
-        ret['overwrite'] = True
-        ret['name'] = string[3:]
-        ret['youtube'] = True
-    elif string.startswith('!'):
-        spl = string[1:].split(' ')
-        ret['name'] = spl[0]
-        if len(spl) > 1 and spl[1].isdigit():
-            ret['volume'] = min(int(spl[1]), 100)
-    elif string.startswith('~!'):
-        ret['overwrite'] = True
-        spl = string[2:].split(' ')
-        ret['name'] = spl[0]
-        if len(spl) > 1 and spl[1].isdigit():
-            ret['volume'] = min(int(spl[1]), 100)
-
-    if ret['name'] and (ret['name'].isalnum() or ret['youtube']):
-        return ret
-
-    return {'cmd': False}
-
-
 def is_admin(user: discord.User) -> bool:
     return user.id in admins
 
@@ -141,29 +101,39 @@ async def handle_direct_message(message: discord.Message):
 
 
 async def handle_server_message(message: discord.Message):
-    msg = parse_server_message(message.content)
-    if not msg['cmd']:
-        return
-
-    error = get_request_error(message)
-    if error is not None:
-        await client.send_message(message.channel, error)
-        return
-
-    if msg['overwrite'] and not msg['name']:
+    if message.content == '~':
         client.stop(message.server)
         return
 
-    if msg['youtube']:
-        if await client.play_yt(msg['name'], message.server, message.author.voice_channel, msg['overwrite']):
-            logging.getLogger('cassoundra.play.ytdl').info('Streaming {} into [{}:{}/{}] by [{}/{}].'.format(
-                msg['name'], message.server.name, message.author.voice_channel.name, message.author.voice_channel.id,
+    match = re.match(r'^(~)?(!{1,2})(.+?)(\s\d+)?$', message.content)
+    # 1: ~ or None
+    # 2: ! or !!
+    # 3: Sound name or query
+    # 4: Volume or None
+
+    if match is not None:
+        error = get_request_error(message)
+        if error is not None:
+            await client.send_message(message.channel, error)
+            return
+
+        if match.group(2) == '!':
+            await client.play(match.group(3), message.server, message.author.voice_channel,
+                              overwrite=(match.group(1) == '~'),
+                              volume=int(match.group(4)) if match.group(4) is not None else None)
+
+            logging.getLogger('cassoundra.play.file').info('Playing {}.mp3 into [{}:{}/{}] by [{}/{}].'.format(
+                match.group(3), message.server.name, message.author.voice_channel.name, message.author.voice_channel.id,
                 message.author.name, message.author.id
             ))
-    else:
-        if await client.play(msg['name'], message.server, message.author.voice_channel, msg['overwrite'], msg['volume']):
-            logging.getLogger('cassoundra.play.file').info('Playing {}.mp3 into [{}:{}/{}] by [{}/{}].'.format(
-                msg['name'], message.server.name, message.author.voice_channel.name, message.author.voice_channel.id,
+
+        elif match.group(2) == '!!':
+            await client.play_yt(match.group(3), message.server, message.author.voice_channel,
+                                 overwrite=(match.group(1) == '~'),
+                                 volume=int(match.group(4)) if match.group(4) is not None else None)
+
+            logging.getLogger('cassoundra.play.ytdl').info('Streaming {} into [{}:{}/{}] by [{}/{}].'.format(
+                match.group(2), message.server.name, message.author.voice_channel.name, message.author.voice_channel.id,
                 message.author.name, message.author.id
             ))
 

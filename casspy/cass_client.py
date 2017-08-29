@@ -40,7 +40,7 @@ class CassClient(discord.Client):
             self.players.pop(server)
 
     async def play_yt(self, url: str, server: discord.Server, channel: discord.Channel = None,
-                      overwrite: bool = False) -> bool:
+                      overwrite: bool = False, volume: int = None) -> bool:
         if overwrite:
             self.stop(server)
         elif self.is_playing(server):
@@ -60,12 +60,13 @@ class CassClient(discord.Client):
                 logging.getLogger('cassoundra.ytdl').warning('No search results for {}.'.format(url))
                 return False
 
+        self.players[server].volume = float(volume) / 100.0 if volume is not None else 0.5
         self.players[server].start()
 
         return True
 
     async def play(self, sound: str, server: discord.Server, channel: discord.Channel = None,
-                   overwrite: bool = False, volume: int = 50) -> bool:
+                   overwrite: bool = False, volume: int = None) -> bool:
         """
         Play a sound effect on a server
         :param sound: Sound file name, without .mp3
@@ -89,7 +90,7 @@ class CassClient(discord.Client):
             await self.move_to_channel(channel)
 
         self.players[server] = self.voice_client_in(server).create_ffmpeg_player(sound_path, after=self.on_sound_end)
-        self.players[server].volume = float(volume) / 100.0
+        self.players[server].volume = float(volume) / 100.0 if volume is not None else 0.5
         self.players[server].start()
 
         return True
