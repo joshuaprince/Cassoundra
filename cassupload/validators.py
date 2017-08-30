@@ -11,3 +11,8 @@ def validate_size(value):
     limit = 1 * 1024 * 1024  # 1MB
     if value.size > limit:
         raise ValidationError(u'File is too large. 1MB maximum')  # todo
+
+
+def validate_name(value):
+    if not value.isalnum():
+        raise ValidationError(u'Command must consist of only letters and numbers.')

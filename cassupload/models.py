@@ -1,7 +1,7 @@
 import os
 
 from django.db import models
-from .validators import validate_extension, validate_size
+from .validators import *
 
 
 def upl_to(instance, fn):
@@ -9,7 +9,7 @@ def upl_to(instance, fn):
 
 
 class Sound(models.Model):
-    name = models.CharField(max_length=32, default='', unique=True)
+    name = models.CharField(max_length=32, default='', unique=True, validators=[validate_name])
     file = models.FileField(
         upload_to=upl_to,
         validators=[validate_extension, validate_size]
