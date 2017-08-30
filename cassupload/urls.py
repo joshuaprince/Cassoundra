@@ -5,8 +5,7 @@ from . import views
 
 app_name = 'cassupload'
 urlpatterns = [
-    # /upload/
-    url(r'^$', views.upload, name='upload'),
-    # /upload/success/
-    url(r'^success/$', TemplateView.as_view(template_name='cassupload/success.html'), name='success')
+    url(r'^upload/$', views.upload, name='upload'),
+    url(r'^upload/success/$', TemplateView.as_view(template_name='cassupload/success.html'), name='success'),
+    url(r'^list/$', views.CassListView.as_view(), name='list')
 ]
