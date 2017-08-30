@@ -1,7 +1,6 @@
 body {
     text-align: center;
-    font-family: Arial, SansSerif;
-    padding-top: 5%;
+    font-family: Arial, SansSerif, serif;
 }
 
 .errorlist {
@@ -23,5 +22,5 @@ label {
 }
 
 h1 {
-    font-size: medium;
+    font-size: large;
 }
